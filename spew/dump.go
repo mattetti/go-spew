@@ -123,25 +123,35 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 	}
 
 	// Display type information.
-	d.w.Write(openParenBytes)
+	if d.cs.PrintParenths {
+		d.w.Write(openParenBytes)
+	}
 	d.w.Write(bytes.Repeat(asteriskBytes, indirects))
 	d.w.Write([]byte(ve.Type().String()))
-	d.w.Write(closeParenBytes)
+	if d.cs.PrintParenths {
+		d.w.Write(closeParenBytes)
+	}
 
 	// Display pointer information.
 	if !d.cs.DisablePointerAddresses && len(pointerChain) > 0 {
-		d.w.Write(openParenBytes)
+		if d.cs.PrintParenths {
+			d.w.Write(openParenBytes)
+		}
 		for i, addr := range pointerChain {
 			if i > 0 {
 				d.w.Write(pointerChainBytes)
 			}
 			printHexPtr(d.w, addr)
 		}
-		d.w.Write(closeParenBytes)
+		if d.cs.PrintParenths {
+			d.w.Write(closeParenBytes)
+		}
 	}
 
 	// Display dereferenced value.
-	d.w.Write(openParenBytes)
+	if d.cs.PrintParenths {
+		d.w.Write(openParenBytes)
+	}
 	switch {
 	case nilFound:
 		d.w.Write(nilAngleBytes)
@@ -153,7 +163,9 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 		d.ignoreNextType = true
 		d.dump(ve)
 	}
-	d.w.Write(closeParenBytes)
+	if d.cs.PrintParenths {
+		d.w.Write(closeParenBytes)
+	}
 }
 
 // dumpSlice handles formatting of arrays and slices.  Byte (uint8 under
@@ -266,9 +278,13 @@ func (d *dumpState) dump(v reflect.Value) {
 	// Print type information unless already handled elsewhere.
 	if !d.ignoreNextType {
 		d.indent()
-		d.w.Write(openParenBytes)
+		if d.cs.PrintParenths {
+			d.w.Write(openParenBytes)
+		}
 		d.w.Write([]byte(v.Type().String()))
-		d.w.Write(closeParenBytes)
+		if d.cs.PrintParenths {
+			d.w.Write(closeParenBytes)
+		}
 		d.w.Write(spaceBytes)
 	}
 	d.ignoreNextType = false
@@ -282,21 +298,27 @@ func (d *dumpState) dump(v reflect.Value) {
 	case reflect.Map, reflect.String:
 		valueLen = v.Len()
 	}
-	if valueLen != 0 || !d.cs.DisableCapacities && valueCap != 0 {
-		d.w.Write(openParenBytes)
-		if valueLen != 0 {
-			d.w.Write(lenEqualsBytes)
-			printInt(d.w, int64(valueLen), 10)
-		}
-		if !d.cs.DisableCapacities && valueCap != 0 {
-			if valueLen != 0 {
-				d.w.Write(spaceBytes)
+	if d.cs.PrintLen {
+		if valueLen != 0 || !d.cs.DisableCapacities && valueCap != 0 {
+			if d.cs.PrintParenths {
+				d.w.Write(openParenBytes)
 			}
-			d.w.Write(capEqualsBytes)
-			printInt(d.w, int64(valueCap), 10)
+			if valueLen != 0 {
+				d.w.Write(lenEqualsBytes)
+				printInt(d.w, int64(valueLen), 10)
+			}
+			if !d.cs.DisableCapacities && valueCap != 0 {
+				if valueLen != 0 {
+					d.w.Write(spaceBytes)
+				}
+				d.w.Write(capEqualsBytes)
+				printInt(d.w, int64(valueCap), 10)
+			}
+			if d.cs.PrintParenths {
+				d.w.Write(closeParenBytes)
+			}
+			d.w.Write(spaceBytes)
 		}
-		d.w.Write(closeParenBytes)
-		d.w.Write(spaceBytes)
 	}
 
 	// Call Stringer/error interfaces if they exist and the handle methods flag
@@ -419,11 +441,11 @@ func (d *dumpState) dump(v reflect.Value) {
 				d.w.Write(colonSpaceBytes)
 				d.ignoreNextIndent = true
 				d.dump(d.unpackValue(v.Field(i)))
-				if i < (numFields - 1) {
-					d.w.Write(commaNewlineBytes)
-				} else {
-					d.w.Write(newlineBytes)
-				}
+				//if i < (numFields - 1) {
+				d.w.Write(commaNewlineBytes)
+				// } else {
+				// d.w.Write(newlineBytes)
+				// }
 			}
 		}
 		d.depth--

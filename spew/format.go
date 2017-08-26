@@ -155,10 +155,14 @@ func (f *formatState) formatPtr(v reflect.Value) {
 
 	// Display type or indirection level depending on flags.
 	if showTypes && !f.ignoreNextType {
-		f.fs.Write(openParenBytes)
+		if f.cs.PrintParenths {
+			f.fs.Write(openParenBytes)
+		}
 		f.fs.Write(bytes.Repeat(asteriskBytes, indirects))
 		f.fs.Write([]byte(ve.Type().String()))
-		f.fs.Write(closeParenBytes)
+		if f.cs.PrintParenths {
+			f.fs.Write(closeParenBytes)
+		}
 	} else {
 		if nilFound || cycleFound {
 			indirects += strings.Count(ve.Type().String(), "*")
@@ -170,14 +174,18 @@ func (f *formatState) formatPtr(v reflect.Value) {
 
 	// Display pointer information depending on flags.
 	if f.fs.Flag('+') && (len(pointerChain) > 0) {
-		f.fs.Write(openParenBytes)
+		if f.cs.PrintParenths {
+			f.fs.Write(openParenBytes)
+		}
 		for i, addr := range pointerChain {
 			if i > 0 {
 				f.fs.Write(pointerChainBytes)
 			}
 			printHexPtr(f.fs, addr)
 		}
-		f.fs.Write(closeParenBytes)
+		if f.cs.PrintParenths {
+			f.fs.Write(closeParenBytes)
+		}
 	}
 
 	// Display dereferenced value.
@@ -214,9 +222,13 @@ func (f *formatState) format(v reflect.Value) {
 
 	// Print type information unless already handled elsewhere.
 	if !f.ignoreNextType && f.fs.Flag('#') {
-		f.fs.Write(openParenBytes)
+		if f.cs.PrintParenths {
+			f.fs.Write(openParenBytes)
+		}
 		f.fs.Write([]byte(v.Type().String()))
-		f.fs.Write(closeParenBytes)
+		if f.cs.PrintParenths {
+			f.fs.Write(closeParenBytes)
+		}
 	}
 	f.ignoreNextType = false
 

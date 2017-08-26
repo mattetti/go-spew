@@ -98,6 +98,12 @@ type ConfigState struct {
 	// be spewed to strings and sorted by those strings.  This is only
 	// considered if SortKeys is true.
 	SpewKeys bool
+
+	// PrintLen enables turning on the printing of the lenght of items exposing that value.
+	PrintLen bool
+
+	//
+	PrintParenths bool
 }
 
 // Config is the active configuration of the top-level functions.
