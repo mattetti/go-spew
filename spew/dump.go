@@ -126,8 +126,17 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 	if d.cs.PrintParenths {
 		d.w.Write(openParenBytes)
 	}
-	d.w.Write(bytes.Repeat(asteriskBytes, indirects))
-	d.w.Write([]byte(ve.Type().String()))
+	// Matt: replave * by &
+	// d.w.Write(bytes.Repeat(asteriskBytes, indirects))
+	d.w.Write([]byte{'&'})
+	// Matt: don't print the main. package info.
+	daType := ve.Type().String()
+	if len(daType) > 5 {
+		if daType[:5] == "main." {
+			daType = daType[5:]
+		}
+	}
+	d.w.Write([]byte(daType))
 	if d.cs.PrintParenths {
 		d.w.Write(closeParenBytes)
 	}
@@ -276,18 +285,19 @@ func (d *dumpState) dump(v reflect.Value) {
 	}
 
 	// Print type information unless already handled elsewhere.
-	if !d.ignoreNextType {
-		d.indent()
-		if d.cs.PrintParenths {
-			d.w.Write(openParenBytes)
-		}
-		d.w.Write([]byte(v.Type().String()))
-		if d.cs.PrintParenths {
-			d.w.Write(closeParenBytes)
-		}
-		d.w.Write(spaceBytes)
-	}
-	d.ignoreNextType = false
+	// Matt: don't print types, comment out everything
+	// if !d.ignoreNextType {
+	// 	d.indent()
+	// 	if d.cs.PrintParenths {
+	// 		d.w.Write(openParenBytes)
+	// 	}
+	// 	d.w.Write([]byte(v.Type().String()))
+	// 	if d.cs.PrintParenths {
+	// 		d.w.Write(closeParenBytes)
+	// 	}
+	// 	d.w.Write(spaceBytes)
+	// }
+	// d.ignoreNextType = false
 
 	// Display length and capacity if the built-in len and cap functions
 	// work with the value's kind and the len/cap itself is non-zero.
@@ -475,10 +485,11 @@ func (d *dumpState) dump(v reflect.Value) {
 func fdump(cs *ConfigState, w io.Writer, a ...interface{}) {
 	for _, arg := range a {
 		if arg == nil {
-			w.Write(interfaceBytes)
-			w.Write(spaceBytes)
-			w.Write(nilAngleBytes)
-			w.Write(newlineBytes)
+			// Matt: skip nil values
+			// w.Write(interfaceBytes)
+			// w.Write(spaceBytes)
+			// w.Write(nilAngleBytes)
+			// w.Write(newlineBytes)
 			continue
 		}
 
