@@ -126,7 +126,7 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 	if d.cs.PrintParenths {
 		d.w.Write(openParenBytes)
 	}
-	// Matt: replave * by &
+	// Matt: replace * by &
 	// d.w.Write(bytes.Repeat(asteriskBytes, indirects))
 	d.w.Write([]byte{'&'})
 	// Matt: don't print the main. package info.
@@ -134,6 +134,11 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 	if len(daType) > 5 {
 		if daType[:5] == "main." {
 			daType = daType[5:]
+		}
+	}
+	if len(daType) > 2 {
+		if daType[0] == '*' {
+			daType = daType[1:]
 		}
 	}
 	d.w.Write([]byte(daType))
@@ -163,7 +168,8 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 	}
 	switch {
 	case nilFound:
-		d.w.Write(nilAngleBytes)
+		d.w.Write([]byte("{}"))
+		// d.w.Write(nilAngleBytes)
 
 	case cycleFound:
 		d.w.Write(circularBytes)
@@ -257,11 +263,12 @@ func (d *dumpState) dumpSlice(v reflect.Value) {
 	// Recursively call dump for each item.
 	for i := 0; i < numEntries; i++ {
 		d.dump(d.unpackValue(v.Index(i)))
-		if i < (numEntries - 1) {
-			d.w.Write(commaNewlineBytes)
-		} else {
-			d.w.Write(newlineBytes)
-		}
+		// Matt: always use a comma
+		// if i < (numEntries - 1) {
+		d.w.Write(commaNewlineBytes)
+		// } else {
+		// 	d.w.Write(newlineBytes)
+		// }
 	}
 }
 
@@ -285,51 +292,58 @@ func (d *dumpState) dump(v reflect.Value) {
 	}
 
 	// Print type information unless already handled elsewhere.
-	// Matt: don't print types, comment out everything
-	// if !d.ignoreNextType {
-	// 	d.indent()
-	// 	if d.cs.PrintParenths {
-	// 		d.w.Write(openParenBytes)
-	// 	}
-	// 	d.w.Write([]byte(v.Type().String()))
-	// 	if d.cs.PrintParenths {
-	// 		d.w.Write(closeParenBytes)
-	// 	}
-	// 	d.w.Write(spaceBytes)
-	// }
-	// d.ignoreNextType = false
+	// Matt: don't print non collection types
+	if !d.ignoreNextType {
+		d.indent()
+		if d.cs.PrintParenths {
+			d.w.Write(openParenBytes)
+		}
+		vType := v.Type()
+		if k := vType.Kind(); k == reflect.Slice || k == reflect.Struct {
+			d.w.Write([]byte(vType.String()))
+		}
+		if d.cs.PrintParenths {
+			d.w.Write(closeParenBytes)
+		}
+		d.w.Write(spaceBytes)
+	}
+	d.ignoreNextType = false
 
 	// Display length and capacity if the built-in len and cap functions
 	// work with the value's kind and the len/cap itself is non-zero.
-	valueLen, valueCap := 0, 0
-	switch v.Kind() {
-	case reflect.Array, reflect.Slice, reflect.Chan:
-		valueLen, valueCap = v.Len(), v.Cap()
-	case reflect.Map, reflect.String:
-		valueLen = v.Len()
-	}
-	if d.cs.PrintLen {
-		if valueLen != 0 || !d.cs.DisableCapacities && valueCap != 0 {
-			if d.cs.PrintParenths {
-				d.w.Write(openParenBytes)
-			}
-			if valueLen != 0 {
-				d.w.Write(lenEqualsBytes)
-				printInt(d.w, int64(valueLen), 10)
-			}
-			if !d.cs.DisableCapacities && valueCap != 0 {
-				if valueLen != 0 {
-					d.w.Write(spaceBytes)
+
+	// Matt: disable len and cap
+	// valueLen, valueCap := 0, 0
+	// switch v.Kind() {
+	// case reflect.Array, reflect.Slice, reflect.Chan:
+	// 	valueLen, valueCap = v.Len(), v.Cap()
+	// case reflect.Map, reflect.String:
+	// 	valueLen = v.Len()
+	// }
+	/*
+		if d.cs.PrintLen {
+			if valueLen != 0 || !d.cs.DisableCapacities && valueCap != 0 {
+				if d.cs.PrintParenths {
+					d.w.Write(openParenBytes)
 				}
-				d.w.Write(capEqualsBytes)
-				printInt(d.w, int64(valueCap), 10)
+				if valueLen != 0 {
+					d.w.Write(lenEqualsBytes)
+					printInt(d.w, int64(valueLen), 10)
+				}
+				if !d.cs.DisableCapacities && valueCap != 0 {
+					if valueLen != 0 {
+						d.w.Write(spaceBytes)
+					}
+					d.w.Write(capEqualsBytes)
+					printInt(d.w, int64(valueCap), 10)
+				}
+				if d.cs.PrintParenths {
+					d.w.Write(closeParenBytes)
+				}
+				d.w.Write(spaceBytes)
 			}
-			if d.cs.PrintParenths {
-				d.w.Write(closeParenBytes)
-			}
-			d.w.Write(spaceBytes)
 		}
-	}
+	*/
 
 	// Call Stringer/error interfaces if they exist and the handle methods flag
 	// is enabled
@@ -369,7 +383,8 @@ func (d *dumpState) dump(v reflect.Value) {
 
 	case reflect.Slice:
 		if v.IsNil() {
-			d.w.Write(nilAngleBytes)
+			// d.w.Write(nilAngleBytes)
+			d.w.Write([]byte("(nil)"))
 			break
 		}
 		fallthrough
@@ -403,10 +418,10 @@ func (d *dumpState) dump(v reflect.Value) {
 
 	case reflect.Map:
 		// nil maps should be indicated as different than empty maps
-		if v.IsNil() {
-			d.w.Write(nilAngleBytes)
-			break
-		}
+		// if v.IsNil() {
+		// 	d.w.Write(nilAngleBytes)
+		// 	break
+		// }
 
 		d.w.Write(openBraceNewlineBytes)
 		d.depth++
@@ -414,21 +429,22 @@ func (d *dumpState) dump(v reflect.Value) {
 			d.indent()
 			d.w.Write(maxNewlineBytes)
 		} else {
-			numEntries := v.Len()
+			// numEntries := v.Len()
 			keys := v.MapKeys()
 			if d.cs.SortKeys {
 				sortValues(keys, d.cs)
 			}
-			for i, key := range keys {
+			for _, key := range keys {
 				d.dump(d.unpackValue(key))
 				d.w.Write(colonSpaceBytes)
 				d.ignoreNextIndent = true
 				d.dump(d.unpackValue(v.MapIndex(key)))
-				if i < (numEntries - 1) {
-					d.w.Write(commaNewlineBytes)
-				} else {
-					d.w.Write(newlineBytes)
-				}
+				// Matt: always end with a comma
+				// if i < (numEntries - 1) {
+				d.w.Write(commaNewlineBytes)
+				// } else {
+				// 	d.w.Write(newlineBytes)
+				// }
 			}
 		}
 		d.depth--
@@ -447,6 +463,10 @@ func (d *dumpState) dump(v reflect.Value) {
 			for i := 0; i < numFields; i++ {
 				d.indent()
 				vtf := vt.Field(i)
+				// Matt: skip XML specific field
+				if vtf.Name == "XMLName" {
+					continue
+				}
 				d.w.Write([]byte(vtf.Name))
 				d.w.Write(colonSpaceBytes)
 				d.ignoreNextIndent = true
@@ -492,7 +512,6 @@ func fdump(cs *ConfigState, w io.Writer, a ...interface{}) {
 			// w.Write(newlineBytes)
 			continue
 		}
-
 		d := dumpState{w: w, cs: cs}
 		d.pointers = make(map[uintptr]int)
 		d.dump(reflect.ValueOf(arg))
